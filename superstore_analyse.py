@@ -1,56 +1,47 @@
 # ============================================================
-# PROJET DATA ANALYST - SUPERSTORE FINANCE DASHBOARD
-# Script de nettoyage + calcul des KPIs pour Power BI
+# SUPERSTORE FINANCE DASHBOARD
 # ============================================================
 
 import pandas as pd
 import os
 
-# ── 1. CHARGEMENT ──────────────────────────────────────────
+# ── 1. ──────────────────────────────────────────
 print("Chargement du fichier...")
 df = pd.read_csv("Sample - Superstore.csv", encoding="latin-1")
 print(f"  {len(df)} lignes chargées, {df.shape[1]} colonnes")
 
 
-# ── 2. NETTOYAGE ───────────────────────────────────────────
+# ── 2. ───────────────────────────────────────────
 print("\nNettoyage...")
 
-# Conversion des dates
 df["Order Date"] = pd.to_datetime(df["Order Date"])
 df["Ship Date"]  = pd.to_datetime(df["Ship Date"])
 
-# Colonnes de temps utiles
 df["Year"]  = df["Order Date"].dt.year
 df["Month"] = df["Order Date"].dt.month
 df["Month Name"] = df["Order Date"].dt.strftime("%B")
 df["Quarter"] = "Q" + df["Order Date"].dt.quarter.astype(str)
 
-# Nettoyage des noms de colonnes (espaces → underscores)
 df.columns = df.columns.str.strip().str.replace(" ", "_").str.replace("-", "_")
 
-# Suppression des colonnes inutiles pour Power BI
 df.drop(columns=["Row_ID", "Country"], inplace=True)
 
 print(f"  Colonnes après nettoyage : {list(df.columns)}")
 
 
-# ── 3. CALCUL DES KPIs ─────────────────────────────────────
+# ── 3. ─────────────────────────────────────
 print("\nCalcul des KPIs...")
 
-# Marge brute (%)
 df["Profit_Margin_%"] = (df["Profit"] / df["Sales"] * 100).round(2)
 
-# Chiffre d'affaires après remise
 df["Sales_After_Discount"] = (df["Sales"] * (1 - df["Discount"])).round(2)
 
-# Durée de livraison (jours)
 df["Delivery_Days"] = (df["Ship_Date"] - df["Order_Date"]).dt.days
 
 
-# ── 4. TABLES AGRÉGÉES ─────────────────────────────────────
+# ── 4. ─────────────────────────────────────
 print("\nGénération des tables agrégées...")
 
-# -- KPIs annuels (pour courbe de croissance YoY)
 kpis_annuels = df.groupby("Year").agg(
     CA_Total=("Sales", "sum"),
     Profit_Total=("Profit", "sum"),
@@ -61,7 +52,6 @@ kpis_annuels = df.groupby("Year").agg(
 kpis_annuels["Marge_%"] = (kpis_annuels["Profit_Total"] / kpis_annuels["CA_Total"] * 100).round(2)
 kpis_annuels["Croissance_CA_%"] = kpis_annuels["CA_Total"].pct_change().mul(100).round(2)
 
-# -- Performance par Catégorie
 perf_categorie = df.groupby("Category").agg(
     CA=("Sales", "sum"),
     Profit=("Profit", "sum"),
@@ -71,7 +61,6 @@ perf_categorie = df.groupby("Category").agg(
 perf_categorie["Marge_%"] = (perf_categorie["Profit"] / perf_categorie["CA"] * 100).round(2)
 perf_categorie.sort_values("CA", ascending=False, inplace=True)
 
-# -- Performance par Sous-Catégorie
 perf_sous_cat = df.groupby(["Category", "Sub_Category"]).agg(
     CA=("Sales", "sum"),
     Profit=("Profit", "sum"),
@@ -79,7 +68,6 @@ perf_sous_cat = df.groupby(["Category", "Sub_Category"]).agg(
 perf_sous_cat["Marge_%"] = (perf_sous_cat["Profit"] / perf_sous_cat["CA"] * 100).round(2)
 perf_sous_cat.sort_values("Profit", ascending=True, inplace=True)
 
-# -- Performance par Région + État
 perf_region = df.groupby(["Region", "State"]).agg(
     CA=("Sales", "sum"),
     Profit=("Profit", "sum"),
@@ -87,7 +75,6 @@ perf_region = df.groupby(["Region", "State"]).agg(
 ).reset_index()
 perf_region["Marge_%"] = (perf_region["Profit"] / perf_region["CA"] * 100).round(2)
 
-# -- Performance par Segment client
 perf_segment = df.groupby("Segment").agg(
     CA=("Sales", "sum"),
     Profit=("Profit", "sum"),
@@ -95,14 +82,13 @@ perf_segment = df.groupby("Segment").agg(
 ).reset_index()
 perf_segment["Marge_%"] = (perf_segment["Profit"] / perf_segment["CA"] * 100).round(2)
 
-# -- Évolution mensuelle
 perf_mensuelle = df.groupby(["Year", "Month", "Month_Name"]).agg(
     CA=("Sales", "sum"),
     Profit=("Profit", "sum"),
 ).reset_index().sort_values(["Year", "Month"])
 
 
-# ── 5. EXPORT CSV ──────────────────────────────────────────
+# ── 5. ──────────────────────────────────────────
 print("\nExport des fichiers CSV...")
 
 os.makedirs("powerbi_data", exist_ok=True)
@@ -122,7 +108,7 @@ for path, table in exports.items():
     print(f"  ✓ {path}  ({len(table)} lignes)")
 
 
-# ── 6. RÉSUMÉ DES INSIGHTS ─────────────────────────────────
+# ── 6. ─────────────────────────────────
 print("\n" + "="*55)
 print("RÉSUMÉ EXÉCUTIF — À mettre dans ton rapport Power BI")
 print("="*55)
